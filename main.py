@@ -73,12 +73,12 @@ def is_valid_move(board, x, y):
 
 
 def make_move(board, x, y, player):
-
     board[x][y] = player
 
 
 def check_win(board, player):
     directions = [(1, 0), (0, 1), (1, 1), (1, -1)]
+
     for x in range(BOARD_SIZE):
         for y in range(BOARD_SIZE):
             if board[x][y] != player:
@@ -152,8 +152,6 @@ def evaluate_board(board):
 def find_best_move(board):
     best_score = -math.inf
     best_move = None
-    alpha = -math.inf
-    beta = math.inf
     for x in range(BOARD_SIZE):
         for y in range(BOARD_SIZE):
             if is_valid_move(board, x, y):
@@ -182,7 +180,7 @@ def find_best_move(board):
     for move in possible_moves:
         x, y = move
         board[x][y] = PLAYER2
-        score = minimax(board, 3, False, alpha, beta)
+        score = minimax(board, 2, False)
         board[x][y] = EMPTY
 
         if score > best_score:
@@ -191,14 +189,10 @@ def find_best_move(board):
         elif score == best_score and random.random() < 0.3:
             best_move = move
 
-        alpha = max(alpha, best_score)
-        if beta <= alpha:
-            break
-
     return best_move if best_move else possible_moves[0]
 
 
-def minimax(board, depth, is_maximizing, alpha, beta):
+def minimax(board, depth, is_maximizing):
 
     if check_win(board, PLAYER2):
         return 1000000
@@ -212,24 +206,19 @@ def minimax(board, depth, is_maximizing, alpha, beta):
         for move in get_possible_moves(board):
             x, y = move
             board[x][y] = PLAYER2
-            score = minimax(board, depth - 1, False, alpha, beta)
+            score = minimax(board, depth - 1, False)
             board[x][y] = EMPTY
             best_score = max(score, best_score)
-            alpha = max(alpha, best_score)
-            if beta <= alpha:
-                break
+
         return best_score
     else:
         best_score = math.inf
         for move in get_possible_moves(board):
             x, y = move
             board[x][y] = PLAYER1
-            score = minimax(board, depth - 1, True, alpha, beta)
+            score = minimax(board, depth - 1, True)
             board[x][y] = EMPTY
             best_score = min(score, best_score)
-            beta = min(beta, best_score)
-            if beta <= alpha:
-                break
         return best_score
 
 
