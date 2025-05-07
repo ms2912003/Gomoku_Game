@@ -122,13 +122,16 @@ def get_player_move(board, player):
             if player == PLAYER1:
                 print("Invalid input. Please enter two numbers separated by space (e.g., '7 8').")
 
+def evaluate_board_fast(board):
 
-def evaluate_board(board):
     score = 0
     directions = [(1, 0), (0, 1), (1, 1), (1, -1)]
 
     for x in range(BOARD_SIZE):
         for y in range(BOARD_SIZE):
+            if board[x][y] == EMPTY:
+                continue
+
             for dx, dy in directions:
                 sequence = []
                 for i in range(6):
@@ -143,11 +146,9 @@ def evaluate_board(board):
                 for pattern in PATTERNS:
                     if pattern in seq_str:
                         score += PATTERNS[pattern]
-                    elif pattern[::-1] in seq_str:
-                        score += PATTERNS[pattern]
+                        break
 
     return score
-
 
 def find_best_move(board):
     best_score = -math.inf
@@ -199,7 +200,7 @@ def minimax(board, depth, is_maximizing):
     if check_win(board, PLAYER1):
         return -1000000
     if depth == 0 or is_board_full(board):
-        return evaluate_board(board)
+        return evaluate_board_fast(board)
 
     if is_maximizing:
         best_score = -math.inf
@@ -221,6 +222,121 @@ def minimax(board, depth, is_maximizing):
             best_score = min(score, best_score)
         return best_score
 
+
+################################
+def find_best_move_alphabeta(board):
+    best_score = -math.inf
+    best_move = None
+    alpha = -math.inf
+    beta = math.inf
+
+    # Check for immediate winning move for AI
+    for x in range(BOARD_SIZE):
+        for y in range(BOARD_SIZE):
+            if is_valid_move(board, x, y):
+                board[x][y] = PLAYER2
+                if check_win(board, PLAYER2):
+                    board[x][y] = EMPTY
+                    return (x, y)
+                board[x][y] = EMPTY
+
+    # Check for immediate block of opponent's win
+    for x in range(BOARD_SIZE):
+        for y in range(BOARD_SIZE):
+            if is_valid_move(board, x, y):
+                board[x][y] = PLAYER1
+                if check_win(board, PLAYER1):
+                    board[x][y] = EMPTY
+                    return (x, y)
+                board[x][y] = EMPTY
+
+    # Alpha-Beta search for best move
+    possible_moves = get_possible_moves(board)
+    if not possible_moves:
+        empty_cells = [(x, y) for x in range(BOARD_SIZE) for y in range(BOARD_SIZE) if is_valid_move(board, x, y)]
+        return random.choice(empty_cells) if empty_cells else (BOARD_SIZE // 2, BOARD_SIZE // 2)
+
+    random.shuffle(possible_moves)
+
+    for move in possible_moves:
+        x, y = move
+        board[x][y] = PLAYER2
+        score = alpha_beta(board, 3, alpha, beta, False)
+        board[x][y] = EMPTY
+
+        if score > best_score:
+            best_score = score
+            best_move = move
+        elif score == best_score and random.random() < 0.3:
+            best_move = move
+
+        alpha = max(alpha, best_score)
+        if beta <= alpha:
+            break
+
+    return best_move if best_move else possible_moves[0]
+
+def alpha_beta(board, depth, alpha, beta, maximizing_player):
+
+    if depth == 0 or is_board_full(board):
+        return evaluate_board_fast(board)
+
+    if check_win(board, PLAYER2):
+        return 1000000
+    if check_win(board, PLAYER1):
+        return -1000000
+
+    if maximizing_player:
+        value = -math.inf
+        for move in get_candidate_moves(board):
+            x, y = move
+            board[x][y] = PLAYER2
+            value = max(value, alpha_beta(board, depth - 1, alpha, beta, False))
+            board[x][y] = EMPTY
+            alpha = max(alpha, value)
+            if alpha >= beta:
+                break
+        return value
+    else:
+        value = math.inf
+        for move in get_candidate_moves(board):
+            x, y = move
+            board[x][y] = PLAYER1
+            value = min(value, alpha_beta(board, depth - 1, alpha, beta, True))
+            board[x][y] = EMPTY
+            beta = min(beta, value)
+            if alpha >= beta:
+                break
+        return value
+
+
+
+
+def get_candidate_moves(board):
+    """Get high-quality candidate moves with aggressive pruning"""
+    moves = set()
+    danger_moves = set()
+    directions = [(-1, -1), (-1, 0), (-1, 1), (0, -1), (0, 1), (1, -1), (1, 0), (1, 1)]
+
+    for x in range(BOARD_SIZE):
+        for y in range(BOARD_SIZE):
+            if board[x][y] != EMPTY:
+                for dx, dy in directions:
+                    nx, ny = x + dx, y + dy
+                    if 0 <= nx < BOARD_SIZE and 0 <= ny < BOARD_SIZE and board[nx][ny] == EMPTY:
+                        if board[x][y] == PLAYER1:
+                            danger_moves.add((nx, ny))
+                        moves.add((nx, ny))
+
+
+    if danger_moves:
+        return list(danger_moves)
+    elif moves:
+        return list(moves)
+    elif is_valid_move(board, BOARD_SIZE // 2, BOARD_SIZE // 2):
+        return [(BOARD_SIZE // 2, BOARD_SIZE // 2)]
+    else:
+        return [(x, y) for x in range(BOARD_SIZE) for y in range(BOARD_SIZE) if is_valid_move(board, x, y)]
 
 def get_possible_moves(board):
     moves = set()
@@ -279,6 +395,43 @@ def game_loop():
 
         current_player = PLAYER2 if current_player == PLAYER1 else PLAYER1
 
+def game_loop_ai_vs_ai():
+    board = create_board()
+    current_player = PLAYER1
+    print_board(board)
+    while True:
+        if current_player == PLAYER1:
+            x, y = find_best_move(board)
+            print(f"AI 1 (Minimax) plays at: {x}, {y}")
+        else:
+            x, y = find_best_move_alphabeta(board)
+            print(f"AI 2 (Alpha-Beta) plays at: {x}, {y}")
+
+        make_move(board, x, y, current_player)
+        print_board(board)
+
+        if check_win(board, current_player):
+            winner = "AI 1 (Minimax)" if current_player == PLAYER1 else "AI 2 (Alpha-Beta)"
+            print(f"{winner} wins!")
+            break
+        if is_board_full(board):
+            print("It's a draw!")
+            break
+
+        current_player = PLAYER2 if current_player == PLAYER1 else PLAYER1
+
 
 if __name__ == "__main__":
-    game_loop()
+    print("Welcome to Gomoku Game!")
+    print("Choose Game Mode:")
+    print("1-->Human vs AI")
+    print("2-->AI vs AI")
+
+    choice = input("Enter 1 or 2: ").strip()
+
+    if choice == '1':
+        game_loop()
+    elif choice == '2':
+        game_loop_ai_vs_ai()
+    else:
+        print("Invalid choice. Please run the program again and enter 1 or 2.")
