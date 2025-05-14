@@ -26,7 +26,7 @@ AI_MINIMAX = 1  # AI using Minimax (in AI vs AI mode)
 AI_ALPHABETA = 2 # AI using ALPHABETA (in AI vs AI mode)
 PLAYER1 = 'X'  # AI Minimax
 PLAYER2 = 'O'  # AI Alpha-Beta
-DEPTH = 1  # Low Number for more speed between each move
+DEPTH = 2  # Low Number for more speed between each move
 
 # Initialize Screen Dispaly, Backgrounds and Sounds
 screen = pygame.display.set_mode(SIZE)
@@ -413,11 +413,10 @@ def human_vs_ai_game():
                 if block_move:
                     row, col = block_move
                 else:
-                    # Take Minimax or Alpha-Beta decision
-                    if random.choice([True, False]):
-                        row, col, _ = minimax(DEPTH, True)
-                    else:
-                        row, col, _ = alphabeta(DEPTH, -math.inf, math.inf, True)
+                    # Take Minimax decision if no winning state
+                    row, col, _ = minimax(DEPTH, True)
+            end_time = time.time()
+            print(f"AI moved at ({row}, {col}) in {end_time - start_time:.2f} seconds")
 
             # Execute the AI move
             board[row][col] = AI
@@ -428,10 +427,9 @@ def human_vs_ai_game():
 
             if check_win(AI):
                 lose_sound.play()
-                display_message("AI WON!")
+                display_message("YOU LOST!")
                 game_active = False
             player_turn = True
-            print(f"AI Move completed in {time.time() - start_time:.2f}s")
 
         # Redraw buttons to update hover state
         draw_board()
